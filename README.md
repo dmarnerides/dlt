@@ -26,7 +26,9 @@ Make sure you have [Torch](http://torch.ch/) installed.
 
 To install use:
 ```bash
-luarocks install dlt
+git clone https://github.com/dmarnerides/dlt.git
+cd dlt
+./install.sh
 ```
 
 ## Warning / Disclaimer

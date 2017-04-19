@@ -2,7 +2,7 @@ package = "dlt"
 version = "1.0-1"
 
 source = {
-   url = "https://github.org/dmarnerides/dlt.git",
+   url = "git://github.com/dmarnerides/dlt.git",
    tag = "master"
 }
 
@@ -21,7 +21,6 @@ dependencies = {
    "paths",
    "class",
    "optim",
-   "nn",
    "threads"
 }
 
