@@ -1,0 +1,7 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
+CMAKE_POLICY(VERSION 2.6)
+FIND_PACKAGE(Torch REQUIRED)
+
+SET(src)
+FILE(GLOB_RECURSE luasrc src/*.lua)
+ADD_TORCH_PACKAGE(dlt "${src}" "${luasrc}" "Deep Learning Toolbox")
