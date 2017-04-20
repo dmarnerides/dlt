@@ -6,7 +6,7 @@ trainer = dlt.Trainer(experiment)
 ```
 * `experiment` Table with experiment configuration
 * Main functionality is `trainer:run()`.
-* Automatically creates loss logs, saves model and optimizer configuration.
+* Automatically creates loss logs, saves model and optimizer state checkpoints.
 * Upon resume, automatically continues from previous checkpoint.
 * Checkpoints every epoch AND according to `checkpointCondition`.
 
