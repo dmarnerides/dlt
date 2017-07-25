@@ -1,11 +1,16 @@
 local dlt = require('dlt._env')
 
--- I did not really need a stack, but sometimes you just have to write a stack class
+-- I did not really need a stack, 
+-- but sometimes you just feel like writing one.
 local stackC = torch.class('Stack')
 function stackC:__init()
     self.tab = {}
     self.push = function(sel,...)
-                    if ... then for _,val in ipairs({...}) do table.insert(sel.tab, val) end end
+                    if ... then 
+                        for _,val in ipairs({...}) do 
+                            table.insert(sel.tab, val) 
+                        end 
+                    end
                 end
     self.size = function(sel) return #sel.tab end
     self.pop = function(sel,num)
@@ -109,11 +114,19 @@ function L:box(message,level,length)
     return self
 end
 
+local function split(str, delim)
+    -- Eliminate bad cases...
+    if string.find(str, delim) == nil then return { str } end
 
+    local result,pat,lastpos = {},"(.-)" .. delim .. "()",nil
+    for part, pos in string.gfind(str, pat) do table.insert(result, part); lastPos = pos; end
+    table.insert(result, string.sub(str, lastPos))
+    return result
+end
 
 function L:lineSplit(message,length)
     length = length or self.width
-    local words = dlt.help.split(message,' ')
+    local words = split(message,' ')
     local lines = {''}
     local count = 1
     for _,val in ipairs(words) do
@@ -135,12 +148,24 @@ function L:padPrint(message,level)
     return self
 end
 
-function L:error(message) self:print('ERROR: ' .. message .. '\nABORTING',self.levels['error']) end
-function L:warning(message) self:print('WARNING: ' .. message,self.levels['warning'])  end
-function L:yell(message) self:padPrint(message,self.levels['yell'])  end
-function L:say(message) self:padPrint(message,self.levels['say']) end
-function L:detail(message) self:padPrint(message,self.levels['detail']) end
-function L:debug(message) self:print('DEBUG: ' .. message,self.levels['debug']) end
+function L:error(message)   
+    self:print('ERROR: ' .. message .. '\nABORTING',self.levels['error']) 
+end
+function L:warning(message) 
+    self:print('WARNING: ' .. message,self.levels['warning'])  
+end
+function L:yell(message) 
+    self:padPrint(message,self.levels['yell'])  
+end
+function L:say(message) 
+    self:padPrint(message,self.levels['say']) 
+end
+function L:detail(message) 
+    self:padPrint(message,self.levels['detail']) 
+end
+function L:debug(message) 
+    self:print('DEBUG: ' .. message,self.levels['debug']) 
+end
 
 
 function L:section(name)
@@ -150,7 +175,7 @@ function L:section(name)
 end
 function L:endSection() 
     local name = self.sectionStack:pop(1)
-    self:padPrint(name .. ' Done.',self.levels['section'])
+    self:padPrint(name .. ' done.',self.levels['section'])
     self:paddedText('','_') 
     return self
 end

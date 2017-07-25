@@ -7,17 +7,21 @@ require('nn')
 threads = require('threads')
 dlt.models = {}
 dlt.have = {}
-for i,mod in pairs({'cutorch','cunn','cudnn','image','csvigo'}) do dlt.have[mod] =  pcall(require,mod) end
+for i,mod in pairs({'cutorch','cunn','cudnn','image',
+                    'csvigo','hdrimage','gnuplot'}) do 
+    dlt.have[mod] =  pcall(require,mod) 
+end
+if dlt.have.hdrimage then hdrimage = require('hdrimage') end
 
 local modules = {
     'logger',
     'helper',
     'slurm',
     'color',
+    'plot',
     'settings',
-    'components',
     'colornet', 'lenet5', 'alexnet',
-    'squeezenet', 'unet', 'vgg',
+    'squeezenet', 'unet', 'vgg', 'dcgan',
     'model',
     'donkey',
     'data',
@@ -27,6 +31,7 @@ local modules = {
     'celeba',
     'cifar',
     'mnist',
+    'hdr',
     'optimizer',
     'trainer',
     'trainlog',

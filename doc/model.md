@@ -2,10 +2,11 @@
 
 ## Usage
 ```lua
-net = dlt.Model(create [,name])
+net = dlt.Model(create [, name, save])
 ```
 * `create` is a function that returns a network OR is the path (string) to a torch serialized network.
 * `name` string, defaults to "model"
+* `save` boolean, defaults to true. Whether model will be saved to disk.
 
 ## Example
 

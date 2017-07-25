@@ -19,7 +19,8 @@ function P:__init(s)
 end
 
 function P:dataPoint(index,setName)
-    return image.load(paths.concat(self.path,string.format('%06d.jpg',index)),nil,self.type)
+    local file = paths.concat(self.path,string.format('%06d.jpg',index))
+    return image.load(file,nil,self.type)
 end
 
 function P:initInstance(setName)

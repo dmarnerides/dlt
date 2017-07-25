@@ -2,17 +2,23 @@ local dlt = require('dlt._env')
 
 local D,parent = torch.class('dlt.Donkey',dlt)
 
-function D:__init(loader,pointSize,batchSize,useLocks, garbageCollect, tensorType,set)
+function D:__init(loader,pointSize,batchSize,useLocks, garbageCollect, 
+                    tensorType,set)
     self.loader = loader
-    if loader == nil then dlt.log:error('No loader provided for donkey.') end
-    if pointSize == nil then dlt.log:error('No pointSize provided for donkey.') end
+    if loader == nil then 
+        dlt.log:error('No loader provided for donkey.') 
+    end
+    if pointSize == nil then 
+        dlt.log:error('No pointSize provided for donkey.') 
+    end
     self.useLocks = useLocks or false
     self.batchSize = batchSize or 1
     self.garbageCollect = garbageCollect or 0
     self.garbageCounter = 0
     tensorType = tensorType or 'float'
     -- Create batch in main memory
-    self.batch = dlt.help.createBatch(self.batchSize, pointSize,tensorType, 0)
+    self.batch = dlt.help.createBatch(self.batchSize, pointSize,
+                                        tensorType, 'cpu')
     -- Initialize Data
     self.loader:init(set)
     -- Create Timer

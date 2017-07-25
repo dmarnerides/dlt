@@ -12,6 +12,31 @@ trainer = dlt.Trainer(experiment)
 
 ## Experiment Configuration
 
+### `trainingCallback`
+A function `trainingCallback(state,batch)` that performs a training step on a batch. `state` gives access to the trainer (models, optimizers etc.). Overrides the default training callback set by `trainingType`.
+e.g.
+```lua
+local function train(state,batch)
+        local net, crit, opt = state.model, state.criterion, state.optimizer
+        -- If net, crit, opt is a table of models/criteria/optimizers
+        -- local netG, netD = net.generator, net.discriminator
+        -- local critG, critD = crit.generator, crit.discriminator
+        -- local optG, optD = opt.generator, opt.discriminator
+        
+        -- Do a normal step
+        net.gradParameters:zero()
+        -- Note: batch will have the fields set in pointSize
+        local prediction = net:forward(batch.input)
+        local loss = crit:forward(prediction, batch.output)
+        local gradOutput = crit:backward(prediction, batch.output)
+        net:backward(batch.input,gradOutput)
+        opt:updateState(state.data.currentEpoch, loss) -- If we need to reduce lr etc..
+        opt:step( function() return loss,net.gradParameters end, net.parameters )
+        -- Access to log
+        state.log.training:log(loss)
+    end
+```
+
 ### `loader`
 A [dlt.Loader](loader.md) (Without `loader:init()` called before).
 ```lua

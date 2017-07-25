@@ -12,18 +12,25 @@ function M:__init(s)
     end
     -- Paths
     self.name = self.name or 'data'
-    if not s.path then dlt.log:error('Path not provided for ' .. self.name .. ' loader.') end 
+    if not s.path then 
+        dlt.log:error('Path not provided for ' .. self.name .. ' loader.') 
+    end 
     s.path = dlt.help.checkHomePath(s.path)
     s.path = paths.concat(s.path)
-    if not paths.dirp(s.path) then dlt.log:error('Path provided for ' .. self.name .. ' loader does not exist. ' .. s.path) end
+    if not paths.dirp(s.path) then 
+        dlt.log:error('Path provided for ' .. self.name .. 
+                        ' loader does not exist. ' .. s.path) 
+    end
     -- Internals
     self.shuffler = {}
     self.currentSet = 'training'
     self.sets = {training = true, validation = true, testing = true}
+
 end
 
-function M:transformIndex(index)  
-    return self.shuffler[self.currentSet][(index - 1) % self.set[self.currentSet].nPoints + 1]   
+function M:transformIndex(index)
+    local np = self.set[self.currentSet].nPoints
+    return self.shuffler[self.currentSet][(index - 1) % np + 1]   
 end
 
 function M:size(set) 
@@ -32,14 +39,21 @@ function M:size(set)
 end
 
 function M:mode(setName)
-    if self.sets[setName] then  self.currentSet = setName
-    else dlt.log:warning('Unknown mode: ' .. setName ..'. Keeping: ' .. self.currentSet ..  '.') end
+    if self.sets[setName] then  
+        self.currentSet = setName
+    else 
+        dlt.log:warning('Unknown mode: ' .. setName ..'. Keeping: ' 
+                        .. self.currentSet ..  '.') 
+    end
 end
 function M:reshuffle() 
-    self.shuffler[self.currentSet] = self.shuffle and torch.randperm(self.set[self.currentSet].nPoints):long() 
-                            or self.shuffler[self.currentSet]
+    self.shuffler[self.currentSet] = self.shuffle 
+            and torch.randperm(self.set[self.currentSet].nPoints):long() 
+             or self.shuffler[self.currentSet]
 end
-function M:get(index) return self:dataPoint(self:transformIndex(index),self.currentSet) end
+function M:get(index) 
+    return self:dataPoint(self:transformIndex(index),self.currentSet) 
+end
 
 function M:assignBatch(batch,iDataPoint,nPoints) 
     for i = iDataPoint,iDataPoint+nPoints - 1 do 
@@ -52,10 +66,12 @@ local function initHelp(self,setName)
      if not self.initialized[setName] then 
         self:initInstance(setName) 
         if self.shuffle then
-            self.shuffler[setName] = torch.randperm(self.set[setName].nPoints):int() 
+            local np = self.set[setName].nPoints
+            self.shuffler[setName] = torch.randperm(np):int() 
         else
             self.shuffler[setName] = {}  
-            setmetatable(self.shuffler[setName],{__index = function(_,key) return key end})
+            setmetatable(self.shuffler[setName],
+                            {__index = function(_,key) return key end})
         end
         self.initialized[setName] = true 
     end

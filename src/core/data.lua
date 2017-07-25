@@ -2,16 +2,24 @@ local dlt = require('dlt._env')
 
 local D,parent = torch.class('dlt.Data',dlt)
 
--- dlt.Data objects utilize loaders to iterate over datasets using single or multiple threads
--- Requires a loader that implements init(), assignBatch(), mode(), size(), [reshuffle()] (with or without arguments)
-function D:__init(loader,pointSize,datasets,currentEpoch)
+-- dlt.Data objects utilize loaders to iterate over datasets 
+-- using single or multiple threads
+-- Requires a loader that implements init(), assignBatch(), mode(), size(), 
+--                          [reshuffle()] (with or without arguments)
+function D:__init(loader,pointSize, datasets, currentEpoch)
     dlt.parse(self)
     dlt.configure(self)
-    if loader == nil then dlt.log:error('No loader provided for data.') end
-    if pointSize == nil then dlt.log:error('No pointSize provided for data.') end
+    if loader == nil then 
+        dlt.log:error('No loader provided for data.') 
+    end
+    if pointSize == nil then 
+        dlt.log:error('No pointSize provided for data.') 
+    end
     self.datasets = datasets or {'training'}
     self.currentEpoch = currentEpoch or 1
-    if self.currentEpoch > self.maxEpochs then dlt.log:error('Max epochs exeeded (' .. self.maxEpochs .. ').') end
+    if self.currentEpoch > self.maxEpochs then 
+        dlt.log:error('Max epochs exeeded (' .. self.maxEpochs .. ').') 
+    end
 
     dlt.log:section(('Data initialization'))
     -- Launch Donkeys in threads or on master thread
@@ -20,7 +28,6 @@ function D:__init(loader,pointSize,datasets,currentEpoch)
         -- local threads = require('threads')
         threads.Threads.serialization('threads.sharedserialize')
         local mid = threads.Mutex():id()
-        local seed,batchSize,useLocks,collectGarbage,tensorType = self.seed,self.batchSize,self.useLocks,self.collectGarbage,self.tensorType
         self.datathreads = threads.Threads(
             self.nThreads, function() 
                 dl = require('dlt')
@@ -31,13 +38,16 @@ function D:__init(loader,pointSize,datasets,currentEpoch)
                 torch.manualSeed(self.seed)
                 dlt = dl
                 local t = require('threads')
-                _donkey = dlt.Donkey(loader,pointSize,batchSize,useLocks, collectGarbage,tensorType)
+                _donkey = dlt.Donkey(loader, pointSize, self.batchSize,
+                                     self.useLocks, self.collectGarbage,
+                                     self.tensorType)
                 _donkey.loader:mode('training')
                 mutex = t.Mutex(mid)
             end
         );
     else
-        _donkey = dlt.Donkey(loader,pointSize,self.batchSize,self.useLocks, self.collectGarbage,self.tensorType)
+        _donkey = dlt.Donkey(loader,pointSize,self.batchSize,self.useLocks, 
+                                self.collectGarbage,self.tensorType)
         _donkey.loader:mode('training')
         self.datathreads = {}
         function self.datathreads:addjob(f1, f2)  f2(f1())  end
@@ -46,15 +56,22 @@ function D:__init(loader,pointSize,datasets,currentEpoch)
     -- Get nPoints and nBatches for datasets
     for _,datasetName in ipairs(self.datasets) do
         self[datasetName] = {}
-        self.datathreads:addjob(function() return _donkey.loader:size(datasetName) end,
+        self.datathreads:addjob(
+            function() 
+                return _donkey.loader:size(datasetName) 
+            end,
             function(nPoints) 
                 self[datasetName].nPoints = nPoints 
-                self[datasetName].nBatches = math.ceil(self[datasetName].nPoints / self.batchSize)
+                self[datasetName].nBatches = 
+                        math.ceil(self[datasetName].nPoints / self.batchSize)
             end )
     end
     self:syncThreads()
     -- Create batch of master thread (or gpu memory)
-    self.batch = dlt.help.createBatch(self.batchSize, pointSize, self.tensorType, self.nGPU)
+    local device = self.nGPU > 0 and 'gpu' or 'cpu'
+    self.batch = dlt.help.createBatch(self.batchSize, pointSize, 
+                                        self.tensorType, device)
+
     -- Create Timers
     self.iterationTimer = torch.Timer()
     self.epochTimer = torch.Timer()
@@ -62,12 +79,16 @@ function D:__init(loader,pointSize,datasets,currentEpoch)
     self.computeTimer = torch.Timer()
     -- Initializations
     self.currentSetID = 1
-    self.currentPoint = {}  for _,set in ipairs(self.datasets) do self.currentPoint[set] = 1 end
+    self.currentPoint = {}  
+    for _,set in ipairs(self.datasets) do 
+        self.currentPoint[set] = 1 
+    end
 
     -- Report dataset sizes
     for _,set in ipairs(self.datasets) do
         dlt.log:yell( string.gsub(set,'^%l', string.upper) .. ' dataset: ' 
-                .. self[set].nPoints .. ' points, ' .. self[set].nBatches .. ' batches.')
+                        .. self[set].nPoints .. ' points, ' 
+                        .. self[set].nBatches .. ' batches.')
     end
     dlt.log:endSection()
 end
@@ -85,7 +106,8 @@ end
 
 
 function D:next()
-    local iPoint,currentSet = self.currentPoint[self:currentSet()], self:currentSet()
+    local currentSet = self:currentSet()
+    local iPoint = self.currentPoint[currentSet]
     self:addjob(function() return _donkey:getBatch(iPoint,currentSet) end,
                 function(donkeyBatch,donkeyTime)
                     
@@ -96,16 +118,17 @@ function D:next()
 
                     local trt = self.transferTimer:time().real
                     self.computeTimer:reset()
-                    local terminate, terminateMessage = self.callbacks[self:currentSet()](self.batch)
-                    self.terminate = terminate; self.terminateMessage = terminateMessage
+                    self.terminate, self.terminateMessage = 
+                            self.callbacks[self:currentSet()](self.batch)
                     
                     self:syncGPU()
-
-                    local compute,iterTime = self.computeTimer:time().real, self.iterationTimer:time().real                    
+                    local computeTime = self.computeTimer:time().real
+                    local iterTime = self.iterationTimer:time().real                    
                     self.iterationTimer:reset()
-                    dlt.log:detail(string.format(
-                            'load: %.3fs, iteration: %.3fs, transfer: %.3fs, compute: %.3fs.',
-                            donkeyTime, iterTime, trt, compute
+                    dlt.log:detail(string.format( 
+                            'load: %.3fs, iteration: %.3fs,' .. 
+                            ' transfer: %.3fs, compute: %.3fs.',
+                            donkeyTime, iterTime, trt, computeTime
                         ))
                 end)
     self:nextPoint()
@@ -114,9 +137,12 @@ end
 
 -- Increase counter and raise flags (for epoch change, checkpointing)
 function D:nextPoint()
-    self.currentPoint[self:currentSet()] = self.currentPoint[self:currentSet()] + self.batchSize
-    if self.currentPoint[self:currentSet()] > self[self:currentSet()].nPoints then
-        self.currentPoint[self:currentSet()] = (self.currentPoint[self:currentSet()] - 1) % self[self:currentSet()].nPoints + 1
+    local curP = self.currentPoint[self:currentSet()] + self.batchSize
+    self.currentPoint[self:currentSet()] = curP
+                                            
+    if curP > self[self:currentSet()].nPoints then
+        curP = (curP - 1) % self[self:currentSet()].nPoints + 1
+        self.currentPoint[self:currentSet()] = curP
         self:nextSet()
         if self.currentSetID == 1 then  self:nextEpoch() end
     end
@@ -126,15 +152,24 @@ function D:nextSet()
     self:syncThreads()
     self.currentSetID = self.currentSetID % #self.datasets + 1
     local currentSet = self:currentSet()
-    if self.epochReshuffle then self:runOnAllThreads(function() _donkey.loader:reshuffle() end) end
-    self:runOnAllThreads(function() _donkey.loader:mode(currentSet) end)
+    if self.epochReshuffle then 
+        self:runOnAllThreads(function() 
+                                _donkey.loader:reshuffle() 
+                             end) 
+    end
+    self:runOnAllThreads(function() 
+                                _donkey.loader:mode(currentSet) 
+                         end)
 end
 
-function D:currentSet() return self.datasets[self.currentSetID] end
+function D:currentSet() 
+    return self.datasets[self.currentSetID] 
+end
 
 function D:nextEpoch()
     self:syncThreads()
-    dlt.log:yell(string.format('Epoch %d took %.3fs to complete.',self.currentEpoch, self.epochTimer:time().real))
+    dlt.log:yell(string.format('Epoch %d took %.3fs to complete.',
+                        self.currentEpoch, self.epochTimer:time().real))
     self.epochTimer:reset()
     self.currentEpoch = self.currentEpoch + 1
     -- if epochs are over then signal termination
@@ -160,7 +195,17 @@ function D:runOnAllThreads(fun,callback)
     end
 end
 
-function D:addjob(fun,callback) self.datathreads:addjob(fun,callback) end
-function D:syncThreads() self.datathreads:synchronize() end
-function D:syncGPU() if self.nGPU > 0 then cutorch.synchronizeAll() end  end
-function D:getEpoch() return self.currentEpoch end
+function D:addjob(fun,callback) 
+    self.datathreads:addjob(fun,callback) 
+end
+function D:syncThreads() 
+    self.datathreads:synchronize() 
+end
+function D:syncGPU() 
+    if self.nGPU > 0 then 
+        cutorch.synchronizeAll() 
+    end
+end
+function D:getEpoch() 
+    return self.currentEpoch 
+end
